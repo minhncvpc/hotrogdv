@@ -1,6 +1,10 @@
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Scanner;
+import com.google.gson.GsonBuilder;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
 
 public class NCM_BlockChain {
 
@@ -9,8 +13,9 @@ public class NCM_BlockChain {
 
     public static int difficulty = 3;
     public static float minimumTransaction = 0.1f;
-    public static Wallet walletA; //Ví A
-    public static Wallet walletB; //Ví B
+    public static Wallet walletA ;
+    //Số lượng điện thoại kho 1
+    public static Wallet walletB; //Số lượng điện thoại kho 2
     public static Transaction genesisTransaction;
 
     public static void main(String[] args) {
@@ -21,45 +26,59 @@ public class NCM_BlockChain {
         walletA = new Wallet();
         walletB = new Wallet();
         Wallet coinbase = new Wallet();
+        Transaction sendFund;
+        Scanner sc = new Scanner(System.in);
+        System.out.println("Nhập SL điện thoại tồn tại kho 1: ");
+        float kho1 =sc.nextFloat();
 
-        //Khởi tạo giao dịch gốc, để chuyển 100 Coin đến ví A walletA
-        genesisTransaction = new Transaction(coinbase.publicKey, walletA.publicKey, 100f, null);
-        genesisTransaction.generateSignature(coinbase.privateKey);	 //Gán private key (ký thủ công) vào giao dịch gốc
+
+
+        genesisTransaction = new Transaction(coinbase.publicKey, walletA.publicKey, kho1, null);
+        genesisTransaction.generateSignature(coinbase.privateKey);//Gán private key (ký thủ công) vào giao dịch gốc
         genesisTransaction.transactionId = "0"; //Gán ID cho giao dịch gốc
         genesisTransaction.outputs.add(new TransactionOutput(genesisTransaction.reciepient, genesisTransaction.value, genesisTransaction.transactionId)); //Thêm Transactions Output
         UTXOs.put(genesisTransaction.outputs.get(0).id, genesisTransaction.outputs.get(0)); //Lưu giao dịch đầu tiên vào danh sách UTXOs.
 
-        System.out.println("Đang tạo và đào khối gốc .... ");
         VNPT_Minh genesis = new VNPT_Minh("0");
         genesis.addTransaction(genesisTransaction);
         addBlock(genesis);
+        System.out.println("Số điện thoại trong kho 1 là : " + walletA.getBalance());
 
-        //Thử nghiệm
+        // Nhap thong tin khoi tao kho 2
+        System.out.print("Nhap so luong dien thoai trong kho 2: ");
+        float initBalanceB = sc.nextFloat();
+
+        //Khởi tạo giao dịch gốc, để chuyển điện thoại vào kho 2
+        genesisTransaction = new Transaction(coinbase.publicKey, walletB.publicKey, initBalanceB, null);
+        genesisTransaction.generateSignature(coinbase.privateKey);     //Gán private key (ký thủ công) vào giao dịch gốc
+        genesisTransaction.transactionId = "0"; //Gán ID cho giao dịch gốc
+        genesisTransaction.outputs.add(new TransactionOutput(genesisTransaction.reciepient, genesisTransaction.value, genesisTransaction.transactionId)); //Thêm Transactions Output
+        UTXOs.put(genesisTransaction.outputs.get(0).id, genesisTransaction.outputs.get(0)); //Lưu giao dịch đầu tiên vào danh sách UTXOs.
+        genesis.addTransaction(genesisTransaction);
+        addBlock(genesis);
+        System.out.println("Số điện thoại của kho 2 là : " + walletB.getBalance());
+
         VNPT_Minh block1 = new VNPT_Minh(genesis.hash);
-        System.out.println("\nSố dư của ví A là : " + walletA.getBalance());
-        System.out.println("\nGiao dịch chuyển số tiền là 40 từ ví A đến ví B...");
-        block1.addTransaction(walletA.sendFunds(walletB.publicKey, 40f));
+
+        //Kiểm tra số lượng chuyển thoả mãn yêu cầu
+        boolean fail = true;
+        while (fail){
+            System.out.print("Nhap so luong dien thoai can chuyen tu kho 1 den kho 2: ");
+            float numberTransfer = sc.nextFloat();
+            System.out.println("Dang xu ly .............................................");
+            sendFund = walletA.sendFunds(walletB.publicKey, numberTransfer);
+            if (sendFund==null){
+                continue;
+            }else{
+                fail= false;
+                block1.addTransaction(sendFund);
+            }
+        }
         addBlock(block1);
-        System.out.println("\nSố dư mới của ví A là : " + walletA.getBalance());
-        System.out.println("Số dư của ví B là : " + walletB.getBalance());
-
-        VNPT_Minh block2 = new VNPT_Minh(block1.hash);
-        System.out.println("\nVí A gửi một số tiền nhiều hơn số tiền có trong ví...");
-        block2.addTransaction(walletA.sendFunds(walletB.publicKey, 1000f));
-        addBlock(block2);
-        System.out.println("\nSố dư mới của ví A là : " + walletA.getBalance());
-        System.out.println("Số dư mới của ví B là  " + walletB.getBalance());
-
-        VNPT_Minh block3 = new VNPT_Minh(block2.hash);
-        System.out.println("\nGiao dịch chuyển số tiền là 20 từ ví B đến ví A...");
-        block3.addTransaction(walletB.sendFunds( walletA.publicKey, 20));
-        System.out.println("\nSố dư mới của ví A là : " + walletA.getBalance());
-        System.out.println("Số dư mới của ví B là  " + walletB.getBalance());
-
-        isChainValid();
-
+        System.out.println("Ket qua so dien thoai moi trong cac kho sau khi chuyen: ");
+        System.out.println("Số điện thoại trong kho 1 là : " + walletA.getBalance());
+        System.out.println("Số điện thoại trong kho 2 là : " + walletB.getBalance());
     }
-
     public static Boolean isChainValid() {
         VNPT_Minh currentBlock;
         VNPT_Minh previousBlock;
